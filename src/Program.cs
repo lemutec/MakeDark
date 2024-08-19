@@ -64,8 +64,14 @@ internal static class Program
                 return;
             }
 
-            NativeMethods.EnableDarkModeForWindow(process.MainWindowHandle);
-            NativeMethods.SetRoundedCorners(process.MainWindowHandle);
+            foreach (nint hWnd in Interop.GetWindowHandleByProcessId(process.Id))
+            {
+                if (!Interop.IsDarkModeForWindow(hWnd))
+                {
+                    Interop.EnableDarkModeForWindow(hWnd);
+                    Interop.SetRoundedCorners(hWnd);
+                }
+            }
         }
     }
 }

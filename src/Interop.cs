@@ -2,7 +2,7 @@
 
 namespace MakeDark;
 
-internal static class NativeMethods
+internal static class Interop
 {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern nint FindWindow(string lpClassName, string lpWindowName);
@@ -10,6 +10,9 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool IsWindow(nint hWnd);
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    public static extern int DwmGetWindowAttribute(nint hwnd, DwmWindowAttribute attr, out int attrValue, int attrSize);
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
     public static extern int DwmSetWindowAttribute(nint hwnd, DwmWindowAttribute attr, ref int attrValue, int attrSize);
@@ -33,6 +36,16 @@ internal static class NativeMethods
         return false;
     }
 
+    public static bool IsDarkModeForWindow(nint hWnd)
+    {
+        if (IsWindows10Version1809OrAbove())
+        {
+            int hr = DwmGetWindowAttribute(hWnd, DwmWindowAttribute.UseImmersiveDarkMode, out int darkMode, sizeof(int));
+            return hr >= 0 && darkMode == 1;
+        }
+        return true;
+    }
+
     public static bool EnableDarkModeForWindow(nint hWnd, bool enable = true)
     {
         if (IsWindows10Version1809OrAbove())
@@ -54,6 +67,33 @@ internal static class NativeMethods
         }
         return true;
     }
+
+    public static nint[] GetWindowHandleByProcessId(int pid)
+    {
+        List<nint> hWnds = [];
+
+        EnumWindows((hWnd, lParam) =>
+        {
+            _ = GetWindowThreadProcessId(hWnd, out uint processId);
+
+            if (processId == pid)
+            {
+                hWnds.Add(hWnd);
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return [.. hWnds];
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    public delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    [DllImport("user32.dll", SetLastError = false, ExactSpelling = true)]
+    public static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
 
     public enum DwmWindowAttribute : uint
     {
