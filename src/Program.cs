@@ -57,7 +57,7 @@ internal static class Program
             process.Start();
             process.WaitForInputIdle();
 
-            SpinWait.SpinUntil(() => process.HasExited || process.MainWindowHandle != IntPtr.Zero);
+            _ = SpinWait.SpinUntil(() => process.HasExited || process.MainWindowHandle != IntPtr.Zero, 30000);
 
             if (process.HasExited)
             {
@@ -72,6 +72,24 @@ internal static class Program
                     Interop.SetRoundedCorners(hWnd);
                 }
             }
+
+            if (process.HasExited)
+            {
+                return;
+            }
+
+            _ = SpinWait.SpinUntil(() =>
+            {
+                foreach (nint hWnd in Interop.GetWindowHandleByProcessId(process.Id))
+                {
+                    if (!Interop.IsDarkModeForWindow(hWnd))
+                    {
+                        Interop.EnableDarkModeForWindow(hWnd);
+                        Interop.SetRoundedCorners(hWnd);
+                    }
+                }
+                return false;
+            }, 3000);
         }
     }
 }
